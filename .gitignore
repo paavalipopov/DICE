@@ -1,0 +1,4 @@
+/assets
+/wandb
+
+*__pycache__*

@@ -32,3 +32,5 @@ pip install -r requirements.txt
 ```
 
 
+conda activate dice
+PYTHONPATH=./ python scripts/run_experiments.py --ds fbirn --prefix test

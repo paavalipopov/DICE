@@ -10,144 +10,299 @@ from sklearn.metrics import f1_score as compute_f1_score
 from collections import defaultdict
 
 # methods that need encoder trained before
-train_encoder_methods = ['cpc', 'spatial-appo', 'vae', "naff", "infonce-stdim", "global-infonce-stdim",
-                         "global-local-infonce-stdim", "dim", "sub-enc-lstm", "sub-lstm"]
+train_encoder_methods = [
+    "cpc",
+    "spatial-appo",
+    "vae",
+    "naff",
+    "infonce-stdim",
+    "global-infonce-stdim",
+    "global-local-infonce-stdim",
+    "dim",
+    "sub-enc-lstm",
+    "sub-lstm",
+]
 probe_only_methods = ["supervised", "random-cnn", "majority", "pretrained-rl-agent"]
-pre_train_encoder_methods = ['DECENNT','basic', 'milc', 'two-loss-milc', "variable-attention", "AE", "milc-fMRI"]
+pre_train_encoder_methods = [
+    "DECENNT",
+    "basic",
+    "milc",
+    "two-loss-milc",
+    "variable-attention",
+    "AE",
+    "milc-fMRI",
+]
 
 
 def get_argparser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pre-training', type=str,
-                        default='None',
-                        choices=pre_train_encoder_methods,
-                        help='Pre-Training Method to Use (default: None )')
-    parser.add_argument("--fMRI-twoD", action='store_true', default=False)
-    parser.add_argument("--deep", action='store_true', default=False)
-    parser.add_argument('--path', type=str,
-                        default='/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb',
-                        help='Path to store the encoder (default: )')
-    parser.add_argument('--oldpath', type=str,
-                        default='/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb',
-                        help='Path to store the encoder (default: )')
-    parser.add_argument('--fig-path', type=str,
-                        default='/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb',
-                        help='Path to store the encoder (default: )')
-    parser.add_argument('--p-path', type=str,
-                        default='/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb',
-                        help='Path to store the encoder (default: )')
-    parser.add_argument('--exp', type=str,
-                        default='NPT',
-                        help='the exp to run (default:FPT )')
-    parser.add_argument('--gain', type=float,
-                        default=0.1,
-                        help='gain value for init (default:0.5 )')
-    parser.add_argument('--temperature', type=float, default=0.25,
-                        help='Temperature for division of norms in pre training')
-    parser.add_argument('--script-ID', type=int, default=1,
-                        help='Task Array ID')
-    parser.add_argument('--n-test-folds-to-run', type=int, default=1,
-                        help='Number of test folds to run, total number of folds are defined in run file ')
-    parser.add_argument('--starting-test-fold', type=int, default=0,
-                        help='test fold index to start from')
-    parser.add_argument('--teststart-ID', type=int, default=1,
-                        help='Task Set Start Index ID')
-    parser.add_argument('--job-ID', type=int, default=1,
-                        help='Job Array ID')
-    parser.add_argument('--ntrials', type=int, default=10,
-                        help='Number of Trials')
-    parser.add_argument('--sample-number', type=int, default=0,
-                        help='Job Array ID')
-    parser.add_argument('--env-name', default='MontezumaRevengeNoFrameskip-v4',
-                        help='environment to train on (default: MontezumaRevengeNoFrameskip-v4)')
-    parser.add_argument('--num-frame-stack', type=int, default=1,
-                        help='Number of frames to stack for a state')
-    parser.add_argument('--no-downsample', action='store_true', default=True,
-                        help='Whether to use a linear classifier')
-    parser.add_argument('--pretraining-steps', type=int, default=100000,
-                        help='Number of steps to pretrain representations (default: 100000)')
-    parser.add_argument('--probe-steps', type=int, default=50000,
-                        help='Number of steps to train probes (default: 30000 )')
+    parser.add_argument(
+        "--pre-training",
+        type=str,
+        default="None",
+        choices=pre_train_encoder_methods,
+        help="Pre-Training Method to Use (default: None )",
+    )
+    parser.add_argument("--fMRI-twoD", action="store_true", default=False)
+    parser.add_argument("--deep", action="store_true", default=False)
+    parser.add_argument(
+        "--path",
+        type=str,
+        default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        help="Path to store the encoder (default: )",
+    )
+    parser.add_argument(
+        "--oldpath",
+        type=str,
+        default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        help="Path to store the encoder (default: )",
+    )
+    parser.add_argument(
+        "--fig-path",
+        type=str,
+        default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        help="Path to store the encoder (default: )",
+    )
+    parser.add_argument(
+        "--p-path",
+        type=str,
+        default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        help="Path to store the encoder (default: )",
+    )
+    parser.add_argument(
+        "--exp", type=str, default="NPT", help="the exp to run (default:FPT )"
+    )
+    parser.add_argument(
+        "--gain", type=float, default=0.1, help="gain value for init (default:0.5 )"
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.25,
+        help="Temperature for division of norms in pre training",
+    )
+    parser.add_argument("--script-ID", type=int, default=1, help="Task Array ID")
+    parser.add_argument(
+        "--n-test-folds-to-run",
+        type=int,
+        default=1,
+        help="Number of test folds to run, total number of folds are defined in run file ",
+    )
+    parser.add_argument(
+        "--starting-test-fold",
+        type=int,
+        default=0,
+        help="test fold index to start from",
+    )
+    parser.add_argument(
+        "--teststart-ID", type=int, default=1, help="Task Set Start Index ID"
+    )
+    parser.add_argument("--job-ID", type=int, default=1, help="Job Array ID")
+    parser.add_argument("--ntrials", type=int, default=10, help="Number of Trials")
+    parser.add_argument("--sample-number", type=int, default=0, help="Job Array ID")
+    parser.add_argument(
+        "--env-name",
+        default="MontezumaRevengeNoFrameskip-v4",
+        help="environment to train on (default: MontezumaRevengeNoFrameskip-v4)",
+    )
+    parser.add_argument(
+        "--num-frame-stack",
+        type=int,
+        default=1,
+        help="Number of frames to stack for a state",
+    )
+    parser.add_argument(
+        "--no-downsample",
+        action="store_true",
+        default=True,
+        help="Whether to use a linear classifier",
+    )
+    parser.add_argument(
+        "--pretraining-steps",
+        type=int,
+        default=100000,
+        help="Number of steps to pretrain representations (default: 100000)",
+    )
+    parser.add_argument(
+        "--probe-steps",
+        type=int,
+        default=50000,
+        help="Number of steps to train probes (default: 30000 )",
+    )
     #     parser.add_argument('--probe-test-steps', type=int, default=15000,
     #                         help='Number of steps to train probes (default: 15000 )')
-    parser.add_argument('--num-processes', type=int, default=8,
-                        help='Number of parallel environments to collect samples from (default: 8)')
-    parser.add_argument('--method', type=str, default='graph_the_works',
-                        choices=train_encoder_methods + probe_only_methods,
-                        help='Method to use for training representations (default: infonce-stdim)')
-    parser.add_argument('--linear', action='store_true', default=True,
-                        help='Whether to use a linear classifier')
-    parser.add_argument('--use_multiple_predictors', action='store_true', default=False,
-                        help='Whether to use multiple linear classifiers in the contrastive loss')
+    parser.add_argument(
+        "--num-processes",
+        type=int,
+        default=8,
+        help="Number of parallel environments to collect samples from (default: 8)",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="graph_the_works",
+        choices=train_encoder_methods + probe_only_methods,
+        help="Method to use for training representations (default: infonce-stdim)",
+    )
+    parser.add_argument(
+        "--linear",
+        action="store_true",
+        default=True,
+        help="Whether to use a linear classifier",
+    )
+    parser.add_argument(
+        "--use_multiple_predictors",
+        action="store_true",
+        default=False,
+        help="Whether to use multiple linear classifiers in the contrastive loss",
+    )
 
-    parser.add_argument('--lr', type=float, default=2e-4,# HCP 5e-3,   #3e-4 FBIRN region,
-                        help='Learning Rate foe learning representations (default: 5e-4)')
-    parser.add_argument('--batch-size', type=int, default=32, #HCP 17,#97OASIS
-                        help='Mini-Batch Size (default: 64)')
-    parser.add_argument('--epochs', type=int, default=300,
-                        help='Number of epochs for  (default: 100)')
-    parser.add_argument('--cuda-id', type=int, default=1,
-                        help='CUDA device index')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Random seed to use')
-    parser.add_argument('--encoder-type', type=str, default="Nature", choices=["Impala", "Nature", "NatureOne"],
-                        help='Encoder type (Impala or Nature or NatureOne)')
-    parser.add_argument('--model-type', type=str, default="graph_the_works", choices=["graph_the_works"],
-                        help='Model type (graph_the_works)')
-    parser.add_argument('--feature-size', type=int, default=2,
-                        help='Size of features')
-    parser.add_argument("--fully-connected", action='store_true', default=False,
-                        help='Is encoder MLP, False would mean conv1D')
-    parser.add_argument('--feature_size_pre_training', type=int, default=32,
-                        help='Size of features')
-    parser.add_argument('--fMRI-feature-size', type=int, default=1024,
-                        help='Size of features')
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=2e-4,  # HCP 5e-3,   #3e-4 FBIRN region,
+        help="Learning Rate foe learning representations (default: 5e-4)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,  # HCP 17,#97OASIS
+        help="Mini-Batch Size (default: 64)",
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=300, help="Number of epochs for  (default: 100)"
+    )
+    parser.add_argument("--cuda-id", type=int, default=1, help="CUDA device index")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed to use")
+    parser.add_argument(
+        "--encoder-type",
+        type=str,
+        default="Nature",
+        choices=["Impala", "Nature", "NatureOne"],
+        help="Encoder type (Impala or Nature or NatureOne)",
+    )
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="graph_the_works",
+        choices=["graph_the_works"],
+        help="Model type (graph_the_works)",
+    )
+    parser.add_argument("--feature-size", type=int, default=2, help="Size of features")
+    parser.add_argument(
+        "--fully-connected",
+        action="store_true",
+        default=False,
+        help="Is encoder MLP, False would mean conv1D",
+    )
+    parser.add_argument(
+        "--feature_size_pre_training", type=int, default=32, help="Size of features"
+    )
+    parser.add_argument(
+        "--fMRI-feature-size", type=int, default=1024, help="Size of features"
+    )
     parser.add_argument("--patience", type=int, default=15)
     parser.add_argument("--entropy-threshold", type=float, default=0.6)
-    parser.add_argument("--color", action='store_true', default=False)
-    parser.add_argument("--end-with-relu", action='store_true', default=False)
+    parser.add_argument("--color", action="store_true", default=False)
+    parser.add_argument("--end-with-relu", action="store_true", default=False)
     parser.add_argument("--wandb-proj", type=str, default="curl-atari-neurips-scratch")
     parser.add_argument("--num_rew_evals", type=int, default=10)
     # rl-probe specific arguments
     parser.add_argument("--checkpoint-index", type=int, default=-1)
 
     # naff-specific arguments
-    parser.add_argument("--naff_fc_size", type=int, default=2048,
-                        help="fully connected layer width for naff")
-    parser.add_argument("--pred_offset", type=int, default=1,
-                        help="how many steps in future to predict")
+    parser.add_argument(
+        "--naff_fc_size",
+        type=int,
+        default=2048,
+        help="fully connected layer width for naff",
+    )
+    parser.add_argument(
+        "--pred_offset", type=int, default=1, help="how many steps in future to predict"
+    )
     # CPC-specific arguments
-    parser.add_argument('--sequence_length', type=int, default=100,
-                        help='Sequence length.')
-    parser.add_argument('--steps_start', type=int, default=0,
-                        help='Number of immediate future steps to ignore.')
-    parser.add_argument('--steps_end', type=int, default=99,
-                        help='Number of future steps to predict.')
-    parser.add_argument('--steps_step', type=int, default=4,
-                        help='Skip every these many frames.')
-    parser.add_argument('--gru_size', type=int, default=256,
-                        help='Hidden size of the GRU layers.')
-    parser.add_argument('--lstm_size', type=int, default=100,
-                        help='Hidden size of the LSTM layers.')
-    parser.add_argument('--lstm_size_within_window', type=int, default=8,
-                        help='Hidden size of the LSTM layers.')
-    parser.add_argument('--fMRI_lstm_size', type=int, default=100,
-                        help='Hidden size of the LSTM layers.')
-    parser.add_argument('--gru_layers', type=int, default=1,
-                        help='Number of GRU layers.')
-    parser.add_argument('--lstm_layers', type=int, default=1,
-                        help='Number of LSTM layers.')
-    parser.add_argument("--collect-mode", type=str, choices=["random_agent", "pretrained_ppo"],
-                        default="random_agent")
+    parser.add_argument(
+        "--sequence_length", type=int, default=100, help="Sequence length."
+    )
+    parser.add_argument(
+        "--steps_start",
+        type=int,
+        default=0,
+        help="Number of immediate future steps to ignore.",
+    )
+    parser.add_argument(
+        "--steps_end", type=int, default=99, help="Number of future steps to predict."
+    )
+    parser.add_argument(
+        "--steps_step", type=int, default=4, help="Skip every these many frames."
+    )
+    parser.add_argument(
+        "--gru_size", type=int, default=256, help="Hidden size of the GRU layers."
+    )
+    parser.add_argument(
+        "--lstm_size", type=int, default=100, help="Hidden size of the LSTM layers."
+    )
+    parser.add_argument(
+        "--lstm_size_within_window",
+        type=int,
+        default=8,
+        help="Hidden size of the LSTM layers.",
+    )
+    parser.add_argument(
+        "--fMRI_lstm_size",
+        type=int,
+        default=100,
+        help="Hidden size of the LSTM layers.",
+    )
+    parser.add_argument(
+        "--gru_layers", type=int, default=1, help="Number of GRU layers."
+    )
+    parser.add_argument(
+        "--lstm_layers", type=int, default=1, help="Number of LSTM layers."
+    )
+    parser.add_argument(
+        "--collect-mode",
+        type=str,
+        choices=["random_agent", "pretrained_ppo"],
+        default="random_agent",
+    )
 
     parser.add_argument("--beta", default=1.0)
     # probe arguments
     parser.add_argument("--weights-path", type=str, default="None")
-    parser.add_argument("--train-encoder", action='store_true', default=True)
-    parser.add_argument('--probe-lr', type=float, default=3e-6)
-    parser.add_argument("--probe-collect-mode", type=str, choices=["random_agent", "pretrained_ppo"],
-                        default="random_agent")
-    parser.add_argument('--num-runs', type=int, default=1)
+    parser.add_argument("--train-encoder", action="store_true", default=True)
+    parser.add_argument("--probe-lr", type=float, default=3e-6)
+    parser.add_argument(
+        "--probe-collect-mode",
+        type=str,
+        choices=["random_agent", "pretrained_ppo"],
+        default="random_agent",
+    )
+    parser.add_argument("--num-runs", type=int, default=1)
+    parser.add_argument(
+        "--ds",
+        type=str,
+        choices=[
+            "oasis",
+            "abide",
+            "fbirn",
+            "cobre",
+            "abide_869",
+            "ukb",
+            "bsnip",
+            "time_fbirn",
+            "fbirn_100",
+            "fbirn_200",
+            "fbirn_400",
+            "fbirn_1000",
+            "hcp",
+            "hcp_roi",
+            "abide_roi",
+        ],
+        required=True,
+        help="Name of the dataset to use for training",
+    )
+    parser.add_argument("--prefix", type=str, default="default")
     return parser
 
 
@@ -174,19 +329,19 @@ def calculate_accuracy_by_labels(preds, y):
 
 
 def calculate_FP_Max(indices, ts_number):
-    FP = 0.
+    FP = 0.0
     N = len(ts_number)
     for i in range(len(indices)):
         x = indices[i]
-        if (ts_number[x] != ts_number[i]):
+        if ts_number[x] != ts_number[i]:
             FP += 1
 
     return FP / N
 
 
 def calculate_FP(metrics, ts_number):
-    FP = 0.
-    FP2 = 0.
+    FP = 0.0
+    FP2 = 0.0
     N = 0
     unique = torch.unique(ts_number)
     for b in range(len(unique)):
@@ -227,17 +382,26 @@ def calculate_multiclass_accuracy(preds, labels):
     acc = float(torch.sum(torch.eq(labels, preds)).data) / labels.size(0)
     return acc
 
+
 def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module
 
 
-
 class EarlyStoppingACC_and_Loss(object):
     """Early stops the training if validation loss doesn't improve after a given patience."""
 
-    def __init__(self, model_backup, patience=30, verbose=False, wandb=None, name="", path="", trial=""):
+    def __init__(
+        self,
+        model_backup,
+        patience=30,
+        verbose=False,
+        wandb=None,
+        name="",
+        path="",
+        trial="",
+    ):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -252,8 +416,8 @@ class EarlyStoppingACC_and_Loss(object):
         self.best_auc = None
         self.loss_for_best = 100
         self.early_stop = False
-        self.val_acc_max = 0.
-        self.val_min_loss = 0.
+        self.val_acc_max = 0.0
+        self.val_min_loss = 0.0
         self.name = name
         self.wandb = wandb
         self.path = path
@@ -263,7 +427,7 @@ class EarlyStoppingACC_and_Loss(object):
         self.a = 0
         self.epoch_saved = 0
 
-    def __call__(self, val_loss, val_auc, model, save=0,epoch=0):
+    def __call__(self, val_loss, val_auc, model, save=0, epoch=0):
 
         if save == 0:
             score = val_loss
@@ -277,16 +441,20 @@ class EarlyStoppingACC_and_Loss(object):
             elif self.best_score - score <= self.threshold:
                 self.counter += 1
                 if self.counter >= 5:
-                    print(f'EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}')
+                    print(
+                        f"EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}"
+                    )
                 if self.counter >= self.patience:
                     self.early_stop = True
-                    print(f'{self.name} has stopped')
+                    print(f"{self.name} has stopped")
 
             else:
                 self.best_score = score
                 # self.save_checkpoint(val_loss, val_auc, model, save)
                 self.counter = 0
-            if self.best_auc < auc_score or (self.best_auc == auc_score and score < self.loss_for_best):
+            if self.best_auc < auc_score or (
+                self.best_auc == auc_score and score < self.loss_for_best
+            ):
                 self.best_auc = auc_score
                 self.loss_for_best = score
                 self.save_checkpoint(val_loss, val_auc, model, save, epoch)
@@ -295,17 +463,20 @@ class EarlyStoppingACC_and_Loss(object):
         else:
             self.save_checkpoint(val_loss, val_auc, model, save, epoch)
 
-
-    def save_checkpoint(self, val_loss, val_auc, model,save, epoch):
-        '''Saves model when validation loss decrease.'''
+    def save_checkpoint(self, val_loss, val_auc, model, save, epoch):
+        """Saves model when validation loss decrease."""
         if self.verbose:
             print(
-                f'Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ...')
+                f"Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
 
         if save == 1:
             # self.a = 0
 
-            torch.save(self.model_backup, os.path.join(self.path, self.name + self.trial +'.pt'))
+            torch.save(
+                self.model_backup,
+                os.path.join(self.path, self.name + self.trial + ".pt"),
+            )
 
         else:
             model_state = model.state_dict()
@@ -318,7 +489,16 @@ class EarlyStoppingACC_and_Loss(object):
 class EarlyStoppingACC(object):
     """Early stops the training if validation loss doesn't improve after a given patience."""
 
-    def __init__(self, model_backup, patience=30, verbose=False, wandb=None, name="", path="", trial=""):
+    def __init__(
+        self,
+        model_backup,
+        patience=30,
+        verbose=False,
+        wandb=None,
+        name="",
+        path="",
+        trial="",
+    ):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -332,8 +512,8 @@ class EarlyStoppingACC(object):
         self.best_score = None
         self.best_auc = None
         self.early_stop = False
-        self.val_acc_max = 0.
-        self.val_min_loss = 0.
+        self.val_acc_max = 0.0
+        self.val_min_loss = 0.0
         self.name = name
         self.wandb = wandb
         self.path = path
@@ -343,7 +523,7 @@ class EarlyStoppingACC(object):
         self.a = 0
         self.epoch_saved = 0
 
-    def __call__(self, val_loss, val_auc, model, save=0,epoch=0):
+    def __call__(self, val_loss, val_auc, model, save=0, epoch=0):
 
         if save == 0:
             score = val_loss
@@ -356,16 +536,18 @@ class EarlyStoppingACC(object):
             elif self.best_score - score <= self.threshold:
                 self.counter += 1
                 if self.counter >= 5:
-                    print(f'EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}')
+                    print(
+                        f"EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}"
+                    )
                 if self.counter >= self.patience:
                     self.early_stop = True
-                    print(f'{self.name} has stopped')
+                    print(f"{self.name} has stopped")
 
             else:
                 self.best_score = score
                 # self.save_checkpoint(val_loss, val_auc, model, save)
                 self.counter = 0
-            if self.best_auc< auc_score:
+            if self.best_auc < auc_score:
                 self.best_auc = auc_score
                 self.save_checkpoint(val_loss, val_auc, model, save, epoch)
                 # self.epoch_saved = epoch
@@ -373,17 +555,20 @@ class EarlyStoppingACC(object):
         else:
             self.save_checkpoint(val_loss, val_auc, model, save, epoch)
 
-
-    def save_checkpoint(self, val_loss, val_auc, model,save, epoch):
-        '''Saves model when validation loss decrease.'''
+    def save_checkpoint(self, val_loss, val_auc, model, save, epoch):
+        """Saves model when validation loss decrease."""
         if self.verbose:
             print(
-                f'Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ...')
+                f"Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
 
         if save == 1:
             # self.a = 0
 
-            torch.save(self.model_backup, os.path.join(self.path, self.name + self.trial +'.pt'))
+            torch.save(
+                self.model_backup,
+                os.path.join(self.path, self.name + self.trial + ".pt"),
+            )
 
         else:
             model_state = model.state_dict()
@@ -396,7 +581,16 @@ class EarlyStoppingACC(object):
 class EarlyStopping(object):
     """Early stops the training if validation loss doesn't improve after a given patience."""
 
-    def __init__(self, model_backup, patience=30, verbose=False, wandb=None, name="", path="", trial=""):
+    def __init__(
+        self,
+        model_backup,
+        patience=30,
+        verbose=False,
+        wandb=None,
+        name="",
+        path="",
+        trial="",
+    ):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -410,8 +604,8 @@ class EarlyStopping(object):
         self.best_score = None
         self.best_auc = None
         self.early_stop = False
-        self.val_acc_max = 0.
-        self.val_min_loss = 0.
+        self.val_acc_max = 0.0
+        self.val_min_loss = 0.0
         self.name = name
         self.wandb = wandb
         self.path = path
@@ -421,7 +615,7 @@ class EarlyStopping(object):
         self.a = 0
         self.epoch_saved = 0
 
-    def __call__(self, val_loss, val_auc, model, save=0,epoch=0):
+    def __call__(self, val_loss, val_auc, model, save=0, epoch=0):
 
         if save == 0:
             score = val_loss
@@ -432,10 +626,12 @@ class EarlyStopping(object):
             elif self.best_score - score <= self.threshold:
                 self.counter += 1
                 if self.counter >= 5:
-                    print(f'EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}')
-                if self.counter >= self.patience:# and epoch > 25:
+                    print(
+                        f"EarlyStopping for {self.name} counter: {self.counter} out of {self.patience}"
+                    )
+                if self.counter >= self.patience:  # and epoch > 25:
                     self.early_stop = True
-                    print(f'{self.name} has stopped')
+                    print(f"{self.name} has stopped")
 
             else:
                 self.best_score = score
@@ -444,15 +640,19 @@ class EarlyStopping(object):
         else:
             self.save_checkpoint(val_loss, val_auc, model, save, epoch)
 
-    def save_checkpoint(self, val_loss, val_auc, model,save, epoch):
-        '''Saves model when validation loss decrease.'''
+    def save_checkpoint(self, val_loss, val_auc, model, save, epoch):
+        """Saves model when validation loss decrease."""
         if self.verbose:
             print(
-                f'Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ...')
+                f"Validation accuracy increased for {self.name}  ({self.val_acc_max:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
 
         if save == 1:
             # self.a = 0
-            torch.save(self.model_backup, os.path.join(self.path, self.name + self.trial +'.pt'))
+            torch.save(
+                self.model_backup,
+                os.path.join(self.path, self.name + self.trial + ".pt"),
+            )
 
         else:
             model_state = model.state_dict()
@@ -460,9 +660,6 @@ class EarlyStopping(object):
             self.val_min_loss = val_loss
             self.val_acc_max = val_auc
             self.epoch_saved = epoch
-
-
-
 
 
 class Cutout(object):
@@ -497,7 +694,7 @@ class Cutout(object):
             x1 = np.clip(x - self.length // 2, 0, w)
             x2 = np.clip(x + self.length // 2, 0, w)
 
-            mask[y1: y2, x1: x2] = 0.
+            mask[y1:y2, x1:x2] = 0.0
 
         mask = torch.from_numpy(mask)
         mask = mask.expand_as(img)
