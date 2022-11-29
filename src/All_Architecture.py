@@ -350,6 +350,7 @@ class combinedModel(nn.Module):
             inputs = sx.permute(0, 2, 1, 3).contiguous()
 
             inputs = inputs.reshape(B * R, W, T)
+            inputs = inputs.to(device)
 
             inputs = self.lstm(inputs)
             # inputs = inputs.to(self.device_one)

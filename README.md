@@ -24,13 +24,14 @@ conda install sklearn
 
 ```bash
 # PyTorch
-conda install pytorch torchvision -c pytorch
-git clone https://github.com/UsmanMahmood27/BrainGNN.git
-cd DICE
+conda create --name dice python=3.9
+conda activate dice
+conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia
 pip install -e .
 pip install -r requirements.txt
 ```
 
-
+```
 conda activate dice
 PYTHONPATH=./ python scripts/run_experiments.py --ds fbirn --prefix test
+```

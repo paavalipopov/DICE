@@ -32,6 +32,7 @@ import torch.nn.utils.rnn as tn
 
 from src.ts_data import load_dataset
 from sklearn.model_selection import StratifiedKFold, train_test_split
+import wandb
 
 
 def find_indices_of_each_class(all_labels):
@@ -179,6 +180,12 @@ def train_encoder(args, k: int, trial: int):
     else:
         assert False, "method {} has no trainer".format(args.method)
 
+    wandb_logger: wandb.run = wandb.init(
+        project=f"{args.prefix}-experiment-dice-{args.ds}",
+        name=f"k_{k}-trial_{trial}",
+        save_code=True,
+    )
+
     (
         test_accuracy,
         test_score,
@@ -197,6 +204,9 @@ def train_encoder(args, k: int, trial: int):
         # "test_recall": test_recall,
         # "edge_weights": edge_weights,
     }
+
+    wandb_logger.log(results)
+    wandb_logger.finish()
 
     result_csv = os.path.join(args.path, "test_results.csv")
     df = pd.DataFrame(results, index=[0])

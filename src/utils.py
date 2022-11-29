@@ -9,6 +9,8 @@ from sklearn.metrics import f1_score as compute_f1_score
 
 from collections import defaultdict
 
+from src.settings import LOGS_ROOT
+
 # methods that need encoder trained before
 train_encoder_methods = [
     "cpc",
@@ -48,7 +50,8 @@ def get_argparser():
     parser.add_argument(
         "--path",
         type=str,
-        default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        # default="/data/mialab/users/umahmood1/STDIMs/baselines/pytorch-a2c-ppo-acktr-gail/STDIM_fMRI/scripts/wandb",
+        default=LOGS_ROOT,
         help="Path to store the encoder (default: )",
     )
     parser.add_argument(
