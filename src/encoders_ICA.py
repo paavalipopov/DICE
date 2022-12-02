@@ -3,24 +3,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .utils import init
 
+
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
 
+
 class CheckSize(nn.Module):
     def forward(self, x):
-        print("final size is",x.size())
+        print("final size is", x.size())
         return x
 
 
 class Conv2dSame(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, padding_layer=nn.ReflectionPad2d):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        bias=True,
+        padding_layer=nn.ReflectionPad2d,
+    ):
         super().__init__()
         ka = kernel_size // 2
         kb = ka - 1 if kernel_size % 2 == 0 else ka
         self.net = torch.nn.Sequential(
             padding_layer((ka, kb, ka, kb)),
-            torch.nn.Conv2d(in_channels, out_channels, kernel_size, bias=bias)
+            torch.nn.Conv2d(in_channels, out_channels, kernel_size, bias=bias),
         )
 
     def forward(self, x):
@@ -33,7 +42,7 @@ class ResidualBlock(nn.Module):
         self.block = nn.Sequential(
             Conv2dSame(in_channels, out_channels, 3),
             nn.ReLU(),
-            Conv2dSame(in_channels, out_channels, 3)
+            Conv2dSame(in_channels, out_channels, 3),
         )
 
     def forward(self, x):
@@ -69,7 +78,7 @@ class ImpalaCNN(nn.Module):
             nn.ReLU(),
             ResidualBlock(depth, depth),
             nn.ReLU(),
-            ResidualBlock(depth, depth)
+            ResidualBlock(depth, depth),
         )
 
     def forward(self, inputs):
@@ -82,7 +91,7 @@ class ImpalaCNN(nn.Module):
 
 
 class NatureCNN(nn.Module):
-    def __init__(self, input_channels, args):
+    def __init__(self, input_channels, args, input_size):
         super().__init__()
         self.feature_size = args.feature_size
         self.hidden_size = self.feature_size
@@ -90,10 +99,12 @@ class NatureCNN(nn.Module):
         self.input_channels = 1
         self.end_with_relu = args.end_with_relu
         self.args = args
-        init_ = lambda m: init(m,
-                               nn.init.orthogonal_,
-                               lambda x: nn.init.constant_(x, 0),
-                               nn.init.calculate_gain('relu'))
+        init_ = lambda m: init(
+            m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0),
+            nn.init.calculate_gain("relu"),
+        )
         self.flatten = Flatten()
 
         if self.downsample:
@@ -111,7 +122,7 @@ class NatureCNN(nn.Module):
             #     #nn.ReLU()
             # )
         else:
-            self.final_conv_size = 1 * 100 * 100
+            self.final_conv_size = 1 * input_size * input_size
             self.final_conv_shape = (1, 100, 100)
             self.main = nn.Sequential(
                 # nn.Dropout(0.25),
@@ -127,7 +138,6 @@ class NatureCNN(nn.Module):
                 # (nn.Conv2d(128, 64, (3,3), stride=1)),
                 # nn.GELU(),
                 # CheckSize(),
-
                 Flatten(),
                 # nn.Linear(self.final_conv_size, 100*100),
                 # nn.ReLU(),
@@ -135,7 +145,6 @@ class NatureCNN(nn.Module):
                 # nn.Linear(256, 32),
                 nn.ReLU(),
                 nn.Linear(64, 2)
-
                 #
                 # (nn.Linear(self.final_conv_size, 64)),
                 # nn.ReLU(),
@@ -172,10 +181,12 @@ class NatureOneCNN(nn.Module):
         self.output_channels = 32
         self.end_with_relu = args.end_with_relu
         self.args = args
-        init_ = lambda m: init(m,
-                               nn.init.orthogonal_,
-                               lambda x: nn.init.constant_(x, 0),
-                               nn.init.calculate_gain('relu'))
+        init_ = lambda m: init(
+            m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0),
+            nn.init.calculate_gain("relu"),
+        )
         self.flatten = Flatten()
 
         if self.downsample:
@@ -190,7 +201,7 @@ class NatureOneCNN(nn.Module):
                 nn.ReLU(),
                 Flatten(),
                 init_(nn.Linear(self.final_conv_size, self.feature_size)),
-                #nn.ReLU()
+                # nn.ReLU()
             )
         elif self.fully_connected:
             self.final_conv_size = 200 * 12
@@ -249,4 +260,4 @@ class NatureOneCNN(nn.Module):
             assert self.args.method != "vae", "can't end with relu and use vae!"
             out = F.relu(out)
 
-        return out.permute(0,2,1)
+        return out.permute(0, 2, 1)

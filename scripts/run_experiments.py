@@ -126,7 +126,7 @@ def train_encoder(args, k: int, trial: int):
     observation_shape = features.shape
     if args.model_type == "graph_the_works":
         print("obs shape", observation_shape[3])
-        encoder = NatureCNN(observation_shape[3], args)
+        encoder = NatureCNN(observation_shape[3], args, observation_shape[2])
         encoder.to(device)
         lstm_model = subjLSTM(
             device,
