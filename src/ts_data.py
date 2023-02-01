@@ -488,7 +488,7 @@ def load_ROI_FBIRN(
 
 def load_HCP(
     dataset_path: str = DATA_ROOT.joinpath("hcp/HCP_AllData_sess1.npz"),
-    labels_path: str = DATA_ROOT.joinpath("hcp/labels_HCP_Gender"),
+    labels_path: str = DATA_ROOT.joinpath("hcp/labels_HCP_Gender.csv"),
     indices_path: str = DATA_ROOT.joinpath("hcp/correct_indices_GSP.csv"),
     filter_idx: bool = False,
 ):

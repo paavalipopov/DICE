@@ -169,7 +169,7 @@ def get_argparser():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,  # HCP 17,#97OASIS
+        default=64,  # HCP 17,#97OASIS
         help="Mini-Batch Size (default: 64)",
     )
     parser.add_argument(
