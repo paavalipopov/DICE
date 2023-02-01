@@ -85,6 +85,8 @@ def train_encoder(args, k: int, trial: int):
 
     features = new_features
 
+    features[features != features] = 0
+
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     skf.get_n_splits(features, labels)
 
