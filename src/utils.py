@@ -9,7 +9,7 @@ from sklearn.metrics import f1_score as compute_f1_score
 
 from collections import defaultdict
 
-from src.settings import LOGS_ROOT
+from src.settings import UTCNOW, LOGS_ROOT
 
 # methods that need encoder trained before
 train_encoder_methods = [
@@ -305,7 +305,7 @@ def get_argparser():
         required=True,
         help="Name of the dataset to use for training",
     )
-    parser.add_argument("--prefix", type=str, default="default")
+    parser.add_argument("--prefix", type=str, default=f"{UTCNOW}")
     return parser
 
 

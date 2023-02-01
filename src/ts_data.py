@@ -605,7 +605,7 @@ def load_ROI_ABIDE(
     return data, labels
 
 
-def load_dataset(dataset: str, filter_idx: bool = False):
+def load_dataset(dataset: str, filter_idx: bool = True):
     """
     Return the dataset defined by type
     """

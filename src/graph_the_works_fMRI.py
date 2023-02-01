@@ -571,9 +571,9 @@ class the_works_trainer(Trainer):
                 rec = recall_score(targets.to("cpu"), indices.to("cpu"))
         accuracy = calculate_accuracy_by_labels(indices, targets)
 
-        if mode == "test":
-            print(indices)
-            print(targets)
+        # if mode == "test":
+        #     print(indices)
+        #     print(targets)
 
         return accuracy, roc, indices, prec, rec
 
