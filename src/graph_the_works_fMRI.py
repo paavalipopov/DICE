@@ -58,6 +58,7 @@ class the_works_trainer(Trainer):
         tr_labels,
         val_labels,
         test_labels,
+        extra_test_labels,
         test_labels2="",
         trial="",
         crossv="",
@@ -71,6 +72,7 @@ class the_works_trainer(Trainer):
         self.device_encoder = device_encoder
         self.tr_labels = tr_labels
         self.test_labels = test_labels
+        self.extra_test_labels = extra_test_labels
         self.test_labels2 = test_labels2
         self.val_labels = val_labels
         self.tr_FNC = tr_FNC
@@ -134,16 +136,6 @@ class the_works_trainer(Trainer):
 
         if self.exp in ["UFPT", "NPT"]:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config["lr"])
-        # self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=9e-5, max_lr=config['lr'], step_size_up= 2000, cycle_momentum=False)
-        # else:
-        #     if self.PT in ['milc', 'milc-fMRI', 'variable-attention', 'two-loss-milc']:
-        #         self.optimizer = torch.optim.Adam(list(self.decoder.parameters()),lr=config['lr'], eps=1e-5)
-        #     else:
-        #         self.optimizer = torch.optim.Adam(list(self.decoder.parameters()) + list(self.attn.parameters())
-        #                                                + list(self.lstm.parameters()) + list(self.key_layer.parameters())
-        #                                           + list(self.value_layer.parameters()) + list(self.query_layer.parameters())
-        #                                           +  list(self.multihead_attn.parameters()),
-        #                                           lr=config['lr'], eps=1e-5)
 
         self.early_stopper = EarlyStopping(
             "self.model_backup",
@@ -154,10 +146,6 @@ class the_works_trainer(Trainer):
             path=self.path,
             trial=self.trials,
         )
-        # self.transform = transforms.Compose([Cutout(n_holes=1, length=80)])
-        # self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=0.001, epochs=80,
-        #                                                 steps_per_epoch=5, pct_start=0.2,
-        #                                                 div_factor=0.001 / config['lr'], final_div_factor=10000,verbose=True)
 
     def find_value_ids(self, it, value):
         """
@@ -220,7 +208,6 @@ class the_works_trainer(Trainer):
         Returns: loss value
 
         """
-        # labels_list = convert_labels2list(labels)
 
         features_anchor, features_positive, features_negative = self.mysample(
             features=features, labels=labels
@@ -244,17 +231,7 @@ class the_works_trainer(Trainer):
         else:
             BS = self.batch_size  # math.ceil(episodes.shape[0]/5)
 
-        # print('episodes shape = ', episodes.shape)
-        # print(len(episodes))
-        # episodes = episodes[150:182,:,:,:]
-        # episodes = episodes.permute(0,2,1,3).reshape(32 * 100, 160, 1)
-        # print(len(episodes))
-        # packed = tn.pack_sequence(episodes, enforce_sorted=False)
-        # return
         if mode == "seq":
-            # sampler = BatchSampler(RandomSampler(range(len(episodes)),
-            #                                      replacement=True),
-            #                        BS, drop_last=False)
             sampler = BatchSampler(
                 SequentialSampler(range(len(episodes))), BS, drop_last=False
             )
@@ -266,26 +243,13 @@ class the_works_trainer(Trainer):
             )
 
         for indices in sampler:
-            # print('length of episodes', len(episodes))
-            # print(indices)
-            # print('episode shape',episodes.shape)
-            # print(episodes[199,:,:,:])
-            episodes_batch = [episodes[x, :, :, :] for x in indices]
 
-            # episodes_batch  = torch.stack(episodes_batch)
-            # episodes_batch = episodes_batch.permute(0,2,1,3).reshape(32 * 100, 160, 1)
-            # packed = tn.pack_sequence(episodes_batch, enforce_sorted=False)
-            # return
+            episodes_batch = [episodes[x, :, :, :] for x in indices]
 
             ts_number = torch.LongTensor(indices)
             i = 0
             sx = []
-            # for episode in episodes_batch:
-            #     # Get all samples from this episode
-            #     # mean = episode.mean()
-            #     # sd = episode.std()
-            #     # episode = (episode - mean) / sd
-            #     sx.append(episode)
+
             yield torch.stack(episodes_batch).to(self.device_encoder), ts_number.to(
                 self.device_encoder
             )
@@ -317,7 +281,7 @@ class the_works_trainer(Trainer):
         mixed_y[ones] = 1
         return mixed_x, y_a, y_b, mixed_y, lam
 
-    def do_one_epoch(self, epoch, episodes, mode):
+    def do_one_epoch(self, epoch, episodes, mode, test_name=None):
 
         (
             epoch_loss,
@@ -350,14 +314,7 @@ class the_works_trainer(Trainer):
         data_generator = self.generate_batch(episodes, mode)
         for sx, ts_number in data_generator:
             FNC = ""
-            # print('sx shape', sx.shape)
-            # sx = sx.permute(0,2,1,3).reshape(sx.shape[0] * 100, 160, 1)
-            # packed = tn.pack_sequence(sx, enforce_sorted=False)
-            # return
 
-            # mean = sx.mean()
-            # sd = sx.std()
-            # sx = (sx - mean) / sd
             loss = 0.0
             loss2 = 0.0
             loss3 = 0.0
@@ -377,26 +334,14 @@ class the_works_trainer(Trainer):
                 # FNC = self.val_FNC[ts_number, :]
 
             else:
-                targets = self.test_labels[ts_number]
-                # if self.test_labels2 != "":
-                #     targets2=self.test_labels2[ts_number]
-                #     targets2=targets2.to(self.device)
-                # FNC = self.test_FNC[ts_number, :, :]
-            # print('sx shape = ', sx.shape)
-            # sx = sx.reshape(32 * 160, 100, 1)
-            # packed = tn.pack_sequence(sx, enforce_sorted=False)
-            # return
-            # if mode == 'test' or mode == 'tst':
-            #     print(targets[:15])
-            #
-            #     f = targets == 1
-            #     m = targets == 0
-            #     print(torch.sum(f))
-            #     print(torch.sum(m))
+                if test_name is None:
+                    targets = self.test_labels[ts_number]
+                else:
+                    targets = self.extra_test_labels[test_name][ts_number]
+
             targets = targets.long()
             targets = targets.to(self.device)
             sx = sx.to(self.device)
-            # logits, FC, _, FC_sum, attention_time,attention_weights, means_logits,selected_indices,ENC_from_means = self.model(sx, targets, mode, self.device, epoch)
 
             logits, kl_loss, FC, FC_temporal = self.model(
                 sx, targets, mode, self.device, epoch
@@ -409,32 +354,14 @@ class the_works_trainer(Trainer):
                 # loss = loss + kl_loss
                 loss, CE_loss, E_loss, lstm_loss = self.add_regularization(loss)
 
-            # print("reg time", time.time() - t)
             t = time.time()
-            # accuracy2, roc2, pred2 = self.acc_and_auc(logits2.detach(), mode, targets.detach())
-            # loss_total = loss + loss2 + loss3
-            # accuracy2, roc2 = self.acc_and_auc(encoder_logits.detach(), mode, targets.detach())
-            # print("auc time", time.time() - t)
+
             if mode == "train":
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                # self.scheduler.step()
-            # t = time.time()
-            # loss = loss + loss2
-            # accuracy = (accuracy + accuracy2)/2
-            # roc = (roc + roc2)/2
-            # if mode == "test":
-            #     epoch += torch.sqrt(loss.detach().item())
-            epoch_loss += loss.detach().item()
-            # epoch_loss2 += (loss2.detach().item())
-            # epoch_loss3 += (loss3.detach().item())
 
-            # epoch_loss_mi += loss2.detach().item()
-            # epoch_loss_mse += loss3.detach().item()
-            # epoch_total_loss = epoch_loss + epoch_loss_mi + epoch_loss_mse
-            # epoch_accuracy += accuracy.detach().item()
-            # epoch_accuracy2 += accuracy2#.detach().item()
+            epoch_loss += loss.detach().item()
 
             if all_logits == "":
                 all_logits = logits.detach()
@@ -444,47 +371,18 @@ class the_works_trainer(Trainer):
                 all_targets = torch.cat((all_targets, targets.detach()), dim=0)
 
             if mode == "train" or mode == "eval":
-                # epoch_CE_loss += CE_loss.detach().item()
                 epoch_E_loss += E_loss
-                # epoch_lstm_loss += lstm_loss.detach().item()
-            # if mode != 'train':
-            #     epoch_roc += roc
-            #     epoch_prec += prec
-            #     epoch_recall += recall
-            # epoch_roc2 += roc2
 
             if mode == "test":
                 if self.edge_weights == "":
 
                     self.edge_weights = FC.detach()
-                    # self.temporal_edge_weights = FC_temporal.detach()
-                    # self.edge_weights_sum = FC_sum.detach()
-                    # self.attention_region = attention_region.detach()
-                    # self.attention_time = attention_time.detach()
-                    # self.attention_weights = attention_weights.detach()
-                    # self.means_labels = selected_indices.detach()
-                    # self.regions_selected = region_indices.detach()
-                    # self.attention_component = attention_component.detach()
-                    # self.attention_time_embeddings = attention_time_embeddings.detach()
-                    # self.test_targets = all_targets
-                    # if self.test_labels2!="":
-                    #     self.test_targets2 = targets2.detach()
-                    # self.test_predictions = pred
-                    # self.regions_selected = regions_selected
-                    # self.FNC = FNC
+
                 else:
                     self.edge_weights = torch.cat(
                         (self.edge_weights, FC.detach()), dim=0
                     )
-                    # self.temporal_edge_weights = torch.cat((self.temporal_edge_weights, FC_temporal.detach()), dim=0)
-                    # self.edge_weights_sum = torch.cat((self.edge_weights_sum, FC_sum.detach()), dim=0)
-                    # self.attention_time = torch.cat((self.attention_time, attention_time.detach()), dim=0)
-                    # if self.test_labels2 != "":
-                    #     self.test_targets2 = torch.cat((self.test_targets2, targets2.detach()), dim=0)
-                    # self.attention_weights = torch.cat((self.attention_weights, attention_weights.detach()), dim=0)
-                    # self.means_labels = torch.cat((self.means_labels, selected_indices.detach()), dim=0)
 
-                    # self.regions_selected = torch.cat((self.regions_selected, region_indices.detach()), dim=0)
             del loss
             del loss2
             # del loss3
@@ -493,8 +391,7 @@ class the_works_trainer(Trainer):
             del FC
             del logits
             del loss_total
-            # del pred
-            # print("junk time", time.time() - t)
+
             steps += 1
 
         accuracy, roc, pred, prec, recall = self.acc_and_auc(
@@ -504,8 +401,7 @@ class the_works_trainer(Trainer):
             epoch_roc += roc * steps
             epoch_prec += prec * steps
             epoch_recall += recall * steps
-        # epoch_accuracy += accuracy * steps
-        #
+
         epoch_accuracy += accuracy.detach().item() * steps
 
         # t = time.time()
@@ -534,35 +430,34 @@ class the_works_trainer(Trainer):
                 prefix=mode,
             )
         if mode == "eval" and epoch > -1:
-            best_on = (
-                epoch_accuracy / steps
-            )  # + (epoch_roc / steps) # +1/(epoch_loss / steps) +
+            best_on = epoch_accuracy / steps
             self.early_stopper(epoch_loss / steps, best_on, self.model, 0, epoch=epoch)
         if mode == "test":
-            self.test_accuracy = epoch_accuracy / steps
-            self.test_auc = epoch_roc / steps
-            self.test_loss = epoch_loss / steps
-            self.test_precision = epoch_prec / steps
-            self.test_recall = epoch_recall / steps
-            self.test_targets = all_targets
-        # print("last time", time.time() - t)
+            if test_name is None:
+                self.test_accuracy = epoch_accuracy / steps
+                self.test_auc = epoch_roc / steps
+                self.test_loss = epoch_loss / steps
+                self.test_precision = epoch_prec / steps
+                self.test_recall = epoch_recall / steps
+                self.test_targets = all_targets
+            else:
+                self.extra_test_log[test_name] = {}
+                self.extra_test_log[test_name]["test_accuracy"] = epoch_accuracy / steps
+                self.extra_test_log[test_name]["test_score"] = epoch_roc / steps
+                self.extra_test_log[test_name]["test_loss"] = epoch_loss / steps
+
         return epoch_loss / steps
 
     def acc_and_auc(self, logits, mode, targets):
-        # print(targets)
-        # N = logits.size(0)
-        # sig = torch.zeros(N, 2).to(self.device)
+
         sig = torch.softmax(logits, dim=1)
         values, indices = sig.max(1)
 
-        # sig = torch.sigmoid(logits).reshape(-1)
-        # indices = (sig > 0.5).int()
         roc = 0.0
         prec = 0.0
         rec = 0.0
         acc = 0.0
-        # return acc, roc, indices, prec, rec
-        # y_scores = sig.detach().gather(1, targets.to(self.device).long().view(-1,1))
+
         if 1 in targets and 0 in targets:
             if mode != "train":
                 y_scores = (sig.detach()[:, 1]).float()
@@ -570,10 +465,6 @@ class the_works_trainer(Trainer):
                 prec = precision_score(targets.to("cpu"), indices.to("cpu"))
                 rec = recall_score(targets.to("cpu"), indices.to("cpu"))
         accuracy = calculate_accuracy_by_labels(indices, targets)
-
-        # if mode == "test":
-        #     print(indices)
-        #     print(targets)
 
         return accuracy, roc, indices, prec, rec
 
@@ -594,10 +485,6 @@ class the_works_trainer(Trainer):
         for name, param in self.model.gta_attend.named_parameters():
             if "bias" not in name:
                 lstm_loss += reg * torch.norm(param, p=1)
-
-        # for name, param in self.model.encoder.named_parameters():
-        #     if 'bias' not in name:
-        #         encoder_loss += (reg * torch.norm(param,p=1))
 
         loss = loss + lstm_loss.to(self.device)  # + encoder_loss
         return loss, CE_loss, E_loss, lstm_loss
@@ -620,16 +507,11 @@ class the_works_trainer(Trainer):
         self.lstm.eval()
         self.lstm.to(self.device)
 
-        # model_dict = torch.load(os.path.join(self.p_path, 'decoder' + self.trials + '.pt'), map_location=self.device)
-        # self.decoder.load_state_dict(model_dict)
-        # self.decoder.eval()
-        # self.decoder.to(self.device)
-
         mode = "eval"
         self.do_one_epoch(0, val_eps, mode)
         return self.test_auc
 
-    def load_model_and_test(self, tst_eps):
+    def load_model_and_test(self, tst_eps, test_name=None):
         print("Best model was", self.early_stopper.epoch_saved)
         model_dict = torch.load(
             os.path.join(self.path, "model" + self.trials + ".pt"),
@@ -639,7 +521,7 @@ class the_works_trainer(Trainer):
         self.model.eval()
 
         mode = "test"
-        self.do_one_epoch(0, tst_eps, mode)
+        self.do_one_epoch(0, tst_eps, mode, test_name)
 
     def save_loss_and_auc(self):
 
@@ -673,19 +555,12 @@ class the_works_trainer(Trainer):
             self.eval_epoch_lstm_loss.insert(0, "eval_epoch_lstm_loss")
             wr.writerow(self.eval_epoch_lstm_loss)
 
-    def train(self, tr_eps, val_eps, tst_eps):
+    def train(self, tr_eps, val_eps, tst_eps, extra_test_eps):
         print("lr = ", self.lr)
-        # TODO: Make it work for all modes, right now only it defaults to pcl.
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[4, 30, 128, 256, 512, 700, 800, 2500], gamma=0.15)
-        #
-        # print(self.test_labels.shape[0])
-        # return
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=5,factor=0.25,cooldown=0,verbose=True )
+
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, patience=4, factor=0.5, cooldown=0, verbose=True
         )
-        #
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.99)
 
         if self.PT in ["DECENNT"]:
             if self.exp in ["UFPT", "FPT"]:
@@ -713,27 +588,13 @@ class the_works_trainer(Trainer):
                 self.model.eval()
 
             mode = "train"
-            # tr_eps = tr_eps.permute(0, 2, 1, 3).contiguous().reshape(292 * 100, 160, 1)
-            # packed = tn.pack_sequence(tr_eps, enforce_sorted=False)
-            # return
-            # t = time.time()
+
             val_loss = self.do_one_epoch(e, tr_eps, mode)
-            # print("train time", time.time()-t)
             self.model.eval()
             mode = "eval"
-            # t = time.time()
             # print("====================================VALIDATION START===============================================")
             val_loss = self.do_one_epoch(e, val_eps, mode)
 
-            # mode="tst"
-            # _ = self.do_one_epoch(e, tst_eps, mode)
-            # mode = 'check'
-            # self.do_one_epoch(e, tst_eps, mode)
-            # print("val time",time.time()-t)
-            # print("====================================VALIDATION END===============================================")
-            # mode = "test"
-            # junk = self.do_one_epoch(e, tst_eps, mode)
-            # if val_loss < 0.65:
             scheduler.step(val_loss)
 
             if self.early_stopper.early_stop:
@@ -742,122 +603,22 @@ class the_works_trainer(Trainer):
                 break
 
         if saved == 0:
-            # print('saving')
             self.early_stopper(0, 0, self.model, 1, epoch=e)
             saved = 1
 
         self.save_loss_and_auc()
         self.load_model_and_test(tst_eps)
 
-        # tr_eps=tr_eps.to('cpu')
-        # self.tr_labels=self.tr_labels.to('cpu')
-        #
-        # tst_eps=tst_eps.to('cpu')
-        # self.test_labels=self.test_labels.to('cpu')
+        self.extra_test_log = {}
+        for dataset in extra_test_eps:
+            self.load_model_and_test(dataset["eps"], dataset["name"])
 
-        ###################################################################################################
-        # lr_auc, acc, lr_auc2, acc2 = 0,0,0,0
-        # mode = 'LR'
-        # list_FC_train_top = []
-        # list_FC_train_bottom =[]
-        # for i in range(7):
-        #     s = i*22
-        #     e = s+22
-        #     _, FC_train_top, FC_train_bottom, _, _,_ = self.model(tr_eps[s:e,:,:,:], self.tr_labels[s:e], mode, self.device, 0)
-        #     list_FC_train_top.append(FC_train_top)
-        #     list_FC_train_bottom.append(FC_train_bottom)
-        # FC_train_top = torch.stack(list_FC_train_top)
-        # FC_train_bottom = torch.stack(list_FC_train_bottom)
-        # # print(FC_train_top.shape)
-        # FC_train_top = FC_train_top.reshape(7 * 22,100,100)
-        # FC_train_bottom = FC_train_bottom.reshape(7 * 22, 100, 100)
-        # FC_train_top=FC_train_top.detach()
-        # FC_train_bottom=FC_train_bottom.detach()
-        # model = LogisticRegression(penalty='l2', solver='liblinear', max_iter=100, random_state=2)
-        # FC_train_top = FC_train_top.to('cpu')
-        # model.fit(FC_train_top.reshape(FC_train_top.shape[0],-1).numpy(), self.tr_labels.to('cpu'))
-        # mode = 'LR'
-        #
-        # _, FC_test_top, FC_test_bottom, _, _,_ = self.model(tst_eps, self.test_labels, mode, self.device, 0)
-        # FC_test_top = FC_test_top.detach()
-        # FC_test_bottom = FC_test_bottom.detach()
-        # FC_test_top=FC_test_top.to('cpu')
-        # lr_probs = model.predict_proba(FC_test_top.reshape(FC_test_top.shape[0],-1).numpy())
-        # lr_probs = lr_probs[:, 1]
-        # lr_auc = roc_auc_score(self.test_labels.to('cpu'), lr_probs)
-        # acc = model.score(FC_test_top.reshape(FC_test_top.shape[0],-1).numpy(),self.test_labels.to('cpu') )
-        #
-        # print(
-        #     " Top 5 auc: {}, accuracy: {}".format(
-        #         lr_auc, acc
-        #     ))
-        # # ###################################################################################################
-        # FC_train_bottom=FC_train_bottom.to('cpu')
-        # model = LogisticRegression(penalty='l2', solver='liblinear', max_iter=100, random_state=2)
-        # model.fit(FC_train_bottom.reshape(FC_train_bottom.shape[0],-1).numpy(), self.tr_labels.to('cpu'))
-        # FC_test_bottom = FC_test_bottom.to('cpu')
-        # lr_probs = model.predict_proba(FC_test_bottom.reshape(FC_test_bottom.shape[0],-1).numpy())
-        # lr_probs = lr_probs[:, 1]
-        # lr_auc2 = roc_auc_score(self.test_labels.to('cpu'), lr_probs)
-        # acc2 = model.score(FC_test_bottom.reshape(FC_test_bottom.shape[0],-1).numpy(),self.test_labels.to('cpu') )
-        #
-        # print(
-        #     " Bottom 5 auc: {}, accuracy: {}".format(
-        #         lr_auc2, acc2
-        #     ))
-        # print('logistic regression auc score for bottom 5 % = ', lr_auc)
-
-        ###################################################################################################
-
-        # f = pl.figure()
-        #
-        # pl.plot(self.train_epoch_loss[1:], label='train_total_loss')
-        # pl.plot(self.eval_epoch_loss[1:], label='val_total_loss')
-        # pl.plot(self.eval_epoch_CE_loss[1:], label='val_CE_loss')
-        # pl.plot(self.eval_epoch_E_loss[1:], label='val_Enc_loss')
-        # pl.plot(self.eval_epoch_lstm_loss[1:], label='val_lstm_loss')
-        # # #
-        # #
-        # pl.xlabel('epochs')
-        # pl.ylabel('loss')
-        # pl.legend()
-        # pl.show()
-        # f.savefig(os.path.join(self.fig_path, 'all_loss.png'), bbox_inches='tight')
-        #
-        # f = pl.figure()
-        # #
-        # pl.plot(self.train_epoch_accuracy[1:], label='train_acc')
-        # pl.plot(self.eval_batch_accuracy[1:], label='val_acc')
-        # pl.plot(self.eval_epoch_roc[1:], label='val_auc')
-        #
-        # #
-        #
-        # pl.xlabel('epochs')
-        # pl.ylabel('acc/auc')
-        # pl.legend()
-        # pl.show()
-        # f.savefig(os.path.join(self.fig_path, 'acc.png'), bbox_inches='tight')
-
-        # return self.test_accuracy, self.test_auc, self.test_loss, e
-        #
-        # print('-----------------')
-        # print(self.test_auc)
-        # print(self.test_labels.shape[0])
-        # print(self.test_auc*self.test_labels.shape[0])
-        # print('-----------------')
-        # torch.cuda.empty_cache()
         return (
             self.test_accuracy,
             self.test_auc,
             self.test_loss,
-            e,
-            self.test_precision,
-            self.test_recall,
-            self.edge_weights,
-        )  # , self.test_targets, #self.edge_weights_sum,self.attention_time#,self.test_targets#,self.test_targets2#, self.attention_weights
-        # return self.test_accuracy, self.test_auc, self.test_loss, e, self.test_precision, self.test_recall, lr_auc, acc,lr_auc2, acc2, self.edge_weights, self.edge_weights_sum,\
-        # self.attention_time,FC_test_top,FC_test_bottom.reshape(FC_test_top.shape)#, self.attention_component#, self.attention_time_embeddings#, self.test_targets, self.test_predictions, self.regions_selected, self.FNC
-        # return self.early_stopper.val_acc_max
+            self.extra_test_log,
+        )
 
     def log_results(
         self,
@@ -880,8 +641,6 @@ class the_works_trainer(Trainer):
                 self.trials,
                 epoch_idx,
                 epoch_loss,
-                # epoch_loss_mse,
-                # epoch_loss_mi,
                 epoch_test_accuracy,
                 epoch_roc,
                 prec,
