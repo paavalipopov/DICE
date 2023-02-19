@@ -49,9 +49,10 @@ def train_encoder(args):
 
     tcs = []
     tcs.append(features.shape[2])
-    for dataset in args.test_ds:
-        local_features, _ = load_dataset(dataset)
-        tcs.append(local_features.shape[2])
+    if args.test_ds is not None:
+        for dataset in args.test_ds:
+            local_features, _ = load_dataset(dataset)
+            tcs.append(local_features.shape[2])
 
     # find minimal time-course
     min_tc = np.min(tcs)
@@ -86,42 +87,45 @@ def train_encoder(args):
     #### extra test datasets
     extra_test_eps = []
     extra_test_labels = {}
-    for dataset in args.test_ds:
-        local_features, local_labels = load_dataset(dataset)
-        local_features = local_features[:, :, :min_tc]
-        local_features[local_features != local_features] = 0
+    if args.test_ds is not None:
+        for dataset in args.test_ds:
+            local_features, local_labels = load_dataset(dataset)
+            local_features = local_features[:, :, :min_tc]
+            local_features[local_features != local_features] = 0
 
-        n_regions = local_features.shape[1]
-        sample_y = 1
-        subjects = local_features.shape[0]
-        tc = local_features.shape[2]
-        window_shift = 1
+            n_regions = local_features.shape[1]
+            sample_y = 1
+            subjects = local_features.shape[0]
+            tc = local_features.shape[2]
+            window_shift = 1
 
-        samples_per_subject = int(tc / sample_y)
+            samples_per_subject = int(tc / sample_y)
 
-        # z-score data
-        for t in range(subjects):
-            for r in range(n_regions):
-                local_features[t, r, :] = stats.zscore(local_features[t, r, :])
+            # z-score data
+            for t in range(subjects):
+                for r in range(n_regions):
+                    local_features[t, r, :] = stats.zscore(local_features[t, r, :])
 
-        # reshape data into windows
-        new_features = np.zeros((subjects, samples_per_subject, n_regions, sample_y))
-        for i in range(subjects):
-            for j in range(samples_per_subject):
-                new_features[i, j, :, :] = local_features[
-                    i, :, (j * window_shift) : (j * window_shift) + sample_y
-                ]
+            # reshape data into windows
+            new_features = np.zeros(
+                (subjects, samples_per_subject, n_regions, sample_y)
+            )
+            for i in range(subjects):
+                for j in range(samples_per_subject):
+                    new_features[i, j, :, :] = local_features[
+                        i, :, (j * window_shift) : (j * window_shift) + sample_y
+                    ]
 
-        local_features = torch.from_numpy(new_features).float()
+            local_features = torch.from_numpy(new_features).float()
 
-        extra_test_eps.append(
-            {
-                "name": dataset,
-                "eps": local_features.to(device),
-            }
-        )
+            extra_test_eps.append(
+                {
+                    "name": dataset,
+                    "eps": local_features.to(device),
+                }
+            )
 
-        extra_test_labels[dataset] = torch.from_numpy(local_labels).int().to(device)
+            extra_test_labels[dataset] = torch.from_numpy(local_labels).int().to(device)
     #######
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
